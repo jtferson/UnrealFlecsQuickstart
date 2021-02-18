@@ -388,7 +388,6 @@ void SystemCheckProjectileLifetime(flecs::iter& It)
 	}
 }
 
-
 void UMainGameplay_Systems::Initialize(flecs::world& ecs)
 {
 	flecs::system<>(ecs, "SystemSpawnInstancesInRadius")

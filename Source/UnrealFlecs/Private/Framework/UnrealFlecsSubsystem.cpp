@@ -1,6 +1,8 @@
 ﻿// Copyright 2021 Red J
 #include "Framework/UnrealFlecsSubsystem.h"
 
+#include "Framework/FlecsRegistration.h"
+
 
 void UUnrealFlecsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -8,7 +10,13 @@ void UUnrealFlecsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	OnTickHandle = FTicker::GetCoreTicker().AddTicker(OnTickDelegate);
 
 	ECSWorld = new flecs::world();
-	
+
+	UE_LOG(LogTemp, Warning, TEXT("Total Component Registrations %s"), *FString::FromInt(FlecsGlobals::FlecsRegs.Num()));
+	for (auto reg : FlecsGlobals::FlecsRegs)
+	{
+		reg(*ECSWorld);
+	}
+
 	UE_LOG(LogTemp, Warning, TEXT("UUnrealFlecsSubsystem has started!"));
 	
 	Super::Initialize(Collection);
@@ -18,8 +26,10 @@ void UUnrealFlecsSubsystem::Deinitialize()
 {
 	FTicker::GetCoreTicker().RemoveTicker(OnTickHandle);
 
-	if(!ECSWorld) delete(ECSWorld);
-
+	if(ECSWorld)
+	{
+		delete(ECSWorld);
+	}
 
 	UE_LOG(LogTemp, Warning, TEXT("UUnrealFlecsSubsystem has shut down!"));
 	
