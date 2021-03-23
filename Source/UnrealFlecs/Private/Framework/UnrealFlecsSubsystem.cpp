@@ -11,12 +11,13 @@ void UUnrealFlecsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	ECSWorld = new flecs::world();
 
-	UE_LOG(LogTemp, Warning, TEXT("Total Component Registrations %s"), *FString::FromInt(FlecsGlobals::FlecsRegs.Num()));
-	for (auto reg : FlecsGlobals::FlecsRegs)
-	{
-		reg(*ECSWorld);
-	}
-
+	auto& regs = FlecsRegContainer::GetFlecsRegs();
+    for (auto reg : regs)
+    {
+    	reg(*ECSWorld);
+    }
+	UE_LOG(LogTemp, Warning, TEXT("Total Component Registrations %s"), *FString::FromInt(regs.Num()));
+	
 	UE_LOG(LogTemp, Warning, TEXT("UUnrealFlecsSubsystem has started!"));
 	
 	Super::Initialize(Collection);

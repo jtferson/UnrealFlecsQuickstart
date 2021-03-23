@@ -1,6 +1,7 @@
 ﻿#include "Framework/FlecsRegistration.h"
 
-namespace FlecsGlobals
+TArray<void(*)(flecs::world&)>& FlecsRegContainer::GetFlecsRegs()
 {
-	TArray<void (*)(flecs::world&)> FlecsRegs;
+	static TArray<void(*)(flecs::world&)> instance;
+	return instance;
 }

@@ -1,11 +1,12 @@
 ﻿#pragma once
 #include "flecs.h"
 
-namespace FlecsGlobals
+class FlecsRegContainer
 {
+public:
 	UNREALFLECS_API
-	extern TArray<void (*)(flecs::world&)> FlecsRegs;
-}
+    static TArray<void (*)(flecs::world&)>& GetFlecsRegs();
+};
 
 template<class T>
 class FlecsComponentRegistration
@@ -16,7 +17,8 @@ class FlecsComponentRegistration
 	{
 		void (*func)(flecs::world&);
 		func = &FuncReg;
-		FlecsGlobals::FlecsRegs.Add(func);
+		TArray<void (*)(flecs::world&)>& regs = FlecsRegContainer::GetFlecsRegs();
+		regs.Add(func);
 		return true;
 	}
 	static void FuncReg(flecs::world& InWorld)
@@ -32,5 +34,11 @@ template<class T>
 bool FlecsComponentRegistration<T>::IsReg = FlecsComponentRegistration<T>::Init();
 
 #define FLECS_COMPONENT(Type) \
-	const FString FlecsComponentRegistration<Type>::Name = FString(#Type); \
-	bool FlecsComponentRegistration<Type>::IsReg = FlecsComponentRegistration<Type>::Init();
+struct Type; \
+const FString FlecsComponentRegistration<Type>::Name = FString(#Type); \
+bool FlecsComponentRegistration<Type>::IsReg = FlecsComponentRegistration<Type>::Init(); \
+struct Type
+
+#define REG_COMPONENT(Type) \
+const FString FlecsComponentRegistration<Type>::Name = FString(#Type); \
+bool FlecsComponentRegistration<Type>::IsReg = FlecsComponentRegistration<Type>::Init();
