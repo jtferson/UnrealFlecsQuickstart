@@ -6,25 +6,25 @@
 void SystemSpawnInstancesInRadius(flecs::iter& It)
 {
 	auto ecs = It.world();
-	auto cBatch = It.column<BatchInstanceAdding>(1);
-	auto cMap = It.column<ISM_Map>(2);
-	auto cGameSettings = It.column<GameSettings>(3);
+	auto cBatch = It.field<BatchInstanceAdding>(1);
+	auto map = It.field<const ISM_Map>(2); //flecs::IN
+	auto gameSettings = It.field<const GameSettings>(3); //flecs::IN
 
 	for (auto i : It)
 	{
 		auto batch = cBatch[i];
-		auto controller = *(cMap->ISMs.Find(batch.Hash));
+		auto controller = *map->ISMs.Find(batch.Hash);
 		if (controller != nullptr)
 		{
 			for (auto j = 0; j < batch.Num; j++)
 			{
 				auto instanceIndex = controller->AddInstance();
-				float spawnRadius = FMath::RandRange(cGameSettings->SpawnRange.X, cGameSettings->SpawnRange.Y);
+				float spawnRadius = FMath::RandRange(gameSettings->SpawnRange.X, gameSettings->SpawnRange.Y);
 				FVector direction = FMath::VRand();
 				auto pos = direction * spawnRadius;
 				FTransform transformValue = FTransform{FVector{pos.X, pos.Y, pos.Z}};
 				ecs.entity()
-				   .add_instanceof(batch.Prefab)
+				   .is_a(batch.Prefab)
 				   .set<ISM_ControllerRef>({controller})
 				   .set<ISM_Index>({instanceIndex})
 				   .set<ISM_Hash>({batch.Hash})
@@ -39,41 +39,39 @@ void SystemSpawnInstancesInRadius(flecs::iter& It)
 void SystemAddInstance(flecs::iter& It)
 {
 	auto ecs = It.world();
-	auto cAdd = It.column<ISM_AddInstance>(1);
-	auto cMap = It.column<ISM_Map>(2);
+	auto cAdd = It.field<ISM_AddInstance>(1);
+	auto map = It.field<const ISM_Map>(2); //flecs::IN
 
 	for (auto i : It)
 	{
-		auto controller = *(cMap->ISMs.Find(cAdd[i].Hash));
+		AISMController* controller = *map->ISMs.Find(cAdd[i].Hash);
 		if (controller != nullptr)
 		{
 			auto instanceIndex = controller->AddInstance();
 			ecs.entity()
-			   .add_instanceof(cAdd[i].Prefab)
+			   .is_a(cAdd[i].Prefab)
 			   .set<ISM_ControllerRef>({controller})
 			   .set<ISM_Index>({instanceIndex})
 			   .set<ISM_Hash>({cAdd[i].Hash})
 			   .set<Transform>({cAdd[i].Transform});
 		}
 		It.entity(i).destruct();
-	}
-
-	for (auto& data : cMap->ISMs)
-	{
-		data.Value->CreateOrExpandTransformArray();
+		for (auto& data : map->ISMs)
+		{
+			data.Value->CreateOrExpandTransformArray();
+		}
 	}
 }
 
 void SystemRemoveInstance(flecs::iter& It)
 {
-	auto cHash = It.column<ISM_Hash>(1);
-	auto cIndex = It.column<ISM_Index>(2);
-	auto cMap = It.column<ISM_Map>(3);
+	auto cHash = It.field<ISM_Hash>(1);
+	auto cIndex = It.field<ISM_Index>(2);
+	auto map = It.field<const ISM_Map>(3); //flecs::IN
 
 	for (auto i : It)
 	{
-		auto hash = cHash[i];
-		auto controller = *(cMap->ISMs.Find(hash.Value));
+		auto controller = *map->ISMs.Find(cHash[i].Value);
 		if (controller != nullptr)
 		{
 			controller->RemoveInstance(cIndex[i].Value);
@@ -84,21 +82,22 @@ void SystemRemoveInstance(flecs::iter& It)
 
 void SystemCopyInstanceTransforms(flecs::iter& It)
 {
-	auto cTransform = It.column<Transform>(1);
-	auto cISMIndex = It.column<ISM_Index>(2);
-	auto cISMController = It.column<ISM_ControllerRef>(3);
+	auto transform = It.field<Transform>(1);
+	auto ISMIndex = It.field<ISM_Index>(2);
+	auto ISMController = It.field<ISM_ControllerRef>(3);
 
 	for (auto i : It)
 	{
-		auto index = cISMIndex[i].Value;
-		cISMController[i].Value->SetTransform(index, cTransform[i].Value);
+		auto index = ISMIndex[i].Value;
+		ISMController[i].Value->SetTransform(index, transform[i].Value);
 	}
 }
 
 void SystemUpdateTransformsInBatch(flecs::iter& It)
 {
-	auto cMap = It.column<ISM_Map>(1);
-	for (auto& data : cMap->ISMs)
+	auto map = It.field<const ISM_Map>(1); //flecs::IN
+	
+	for (auto& data : map->ISMs)
 	{
 		data.Value->BatchUpdateTransform();
 	}
@@ -107,9 +106,9 @@ void SystemUpdateTransformsInBatch(flecs::iter& It)
 
 void SystemUpdateBoids(flecs::iter& It)
 {
-	auto cTransform = It.column<Transform>(1);
-	auto cBoidSettings = It.column<BoidSettings>(2);
-	auto cSpeed = It.column<Speed>(3);
+	auto cTransform = It.field<Transform>(1);
+	auto boidSettings = It.field<const BoidSettings>(2); //flecs::IN
+	auto speed = It.field<const Speed>(3); //flecs::IN
 
 	TMap<FIntVector, TArray<int>> hashMap;
 	TArray<FVector> cellPositions;
@@ -125,7 +124,7 @@ void SystemUpdateBoids(flecs::iter& It)
 	for (auto i : It)
 	{
 		auto location = cTransform[i].Value.GetLocation();
-		FIntVector hashedVector = FIntVector(location / cBoidSettings->CellSize);
+		FIntVector hashedVector = FIntVector(location / boidSettings->CellSize);
 
 		auto entityIndices = hashMap.Find(hashedVector);
 		if (!entityIndices)
@@ -185,7 +184,7 @@ void SystemUpdateBoids(flecs::iter& It)
 			auto averagePosition = positionSum / nearbyBoidCount;
 
 			float distToAveragePositionSq = FVector::DistSquared(averagePosition, boidPosition);
-			float maxDistToAveragePositionSq = cBoidSettings->CellSize * cBoidSettings->CellSize;
+			float maxDistToAveragePositionSq = boidSettings->CellSize * boidSettings->CellSize;
 
 			float distanceNormalized = distToAveragePositionSq / maxDistToAveragePositionSq;
 			float needToLeave = FMath::Max(1 - distanceNormalized, 0.f);
@@ -193,23 +192,23 @@ void SystemUpdateBoids(flecs::iter& It)
 			FVector toAveragePosition = (averagePosition - boidPosition).GetSafeNormal();
 			auto averageHeading = alignmentSum / nearbyBoidCount;
 
-			force += -toAveragePosition * cBoidSettings->SeparationWeight * needToLeave;
-			force += toAveragePosition * cBoidSettings->CohesionWeight;
-			force += averageHeading * cBoidSettings->AlignmentWeight;
+			force += -toAveragePosition * boidSettings->SeparationWeight * needToLeave;
+			force += toAveragePosition * boidSettings->CohesionWeight;
+			force += averageHeading * boidSettings->AlignmentWeight;
 		}
 
 		if (FMath::Min(FMath::Min(
-			               (cBoidSettings->CageSize / 2.f) - FMath::Abs(boidPosition.X),
-			               (cBoidSettings->CageSize / 2.f) - FMath::Abs(boidPosition.Y)),
-		               (cBoidSettings->CageSize / 2.f) - FMath::Abs(boidPosition.Z))
-			< cBoidSettings->CageAvoidDistance)
+			               (boidSettings->CageSize / 2.f) - FMath::Abs(boidPosition.X),
+			               (boidSettings->CageSize / 2.f) - FMath::Abs(boidPosition.Y)),
+		               (boidSettings->CageSize / 2.f) - FMath::Abs(boidPosition.Z))
+			< boidSettings->CageAvoidDistance)
 		{
-			force += -boidPosition.GetSafeNormal() * cBoidSettings->CageAvoidWeight;
+			force += -boidPosition.GetSafeNormal() * boidSettings->CageAvoidWeight;
 		}
 
 		FVector velocity = transform.GetRotation().GetForwardVector();
 		velocity += force * It.delta_time();
-		velocity = velocity.GetSafeNormal() * cSpeed->Value;
+		velocity = velocity.GetSafeNormal() * speed->Value;
 		transform.SetLocation(transform.GetLocation() + velocity * It.delta_time());
 
 		auto rotator = FRotationMatrix::MakeFromX(velocity.GetSafeNormal()).Rotator();
@@ -222,32 +221,32 @@ void SystemUpdateBoids(flecs::iter& It)
 
 void SystemUpdateTargetHashMap(flecs::iter& It)
 {
-	auto cTargets = It.column<TargetHashMap>(1);
-	auto cGameSettings = It.column<GameSettings>(2);
-	auto sQuery = It.column<SystemQuery>(3);
+	auto targets = It.field<TargetHashMap>(1);
+	auto gameSrttings = It.field<const GameSettings>(2); //flecs::IN
+	auto query = It.field<const SystemQuery>(3); //flecs::IN
 
-	cTargets->Value.Empty();
+	targets->Value.Empty();
 
-	sQuery->Value.action([&](flecs::iter& qIt)
+	query->Value.iter([&](flecs::iter& qIt)
 	{
-		auto cTransform = qIt.column<Transform>(1);
-		auto cCooldown = qIt.column<SpaceshipWeaponCooldownTime>(2);
-		auto cTeam = qIt.column<BattleTeam>(3);
+		auto cTransform = qIt.field<Transform>(1);
+		auto cCooldown = qIt.field<SpaceshipWeaponCooldownTime>(2);
+		auto cTeam = qIt.field<BattleTeam>(3);
 
 		for (auto i : qIt)
 		{
 			auto location = cTransform[i].Value.GetLocation();
-			FIntVector hashedVector = FIntVector(location / (cGameSettings->ShootingCellSize));
+			FIntVector hashedVector = FIntVector(location / gameSrttings->ShootingCellSize);
 
-			Data_TargetInstance data{qIt.entity(i), location, cTeam->Value, cCooldown[i].CurrentValue <= 0};
+			Data_TargetInstance data{qIt.entity(i), location, cTeam[i].Value, cCooldown[i].CurrentValue <= 0};
 
-			auto entityData = cTargets->Value.Find(hashedVector);
+			auto entityData = targets->Value.Find(hashedVector);
 			if (!entityData)
 			{
 				TArray<Data_TargetInstance> newEntityData;
 
 				newEntityData.Add(data);
-				cTargets->Value.Emplace(hashedVector, std::move(newEntityData));
+				targets->Value.Emplace(hashedVector, std::move(newEntityData));
 			}
 			else
 			{
@@ -261,9 +260,9 @@ void SystemUpdateTargetHashMap(flecs::iter& It)
 void SystemSearchNewTargets(flecs::iter& It)
 {
 	auto ecs = It.world();
-	auto cTargets = It.column<TargetHashMap>(1);
+	auto targets = It.field<TargetHashMap>(1);
 
-	for (auto& hashedData : cTargets->Value)
+	for (auto& hashedData : targets->Value)
 	{
 		//This naive approach is not so bad because ships are searching their targets only when they can attack
 		for (auto i = 0; i < hashedData.Value.Num(); i++)
@@ -294,15 +293,13 @@ void SystemSearchNewTargets(flecs::iter& It)
 	}
 }
 
-
 void SystemSpawnProjectiles(flecs::iter& It)
 {
 	auto ecs = It.world();
-
-	auto cTarget = It.column<SpaceshipTarget>(1);
-	auto cCooldown = It.column<SpaceshipWeaponCooldownTime>(2);
-	auto cWeaponData = It.column<SpaceshipWeaponData>(3);
-	auto cTransform = It.column<Transform>(4);
+	auto cTarget = It.field<SpaceshipTarget>(1);
+	auto cCooldown = It.field<SpaceshipWeaponCooldownTime>(2);
+	auto weaponData = It.field<const SpaceshipWeaponData>(3); //flecs::IN
+	auto cTransform = It.field<Transform>(4);
 
 	for (auto i : It)
 	{
@@ -313,21 +310,21 @@ void SystemSpawnProjectiles(flecs::iter& It)
 			FRotator rotation = direction.ToOrientationRotator();
 			FVector scale = FVector(1);
 
-			if (cWeaponData->IsBeam)
+			if (weaponData->IsBeam)
 			{
 				auto distance = FVector::Distance(cTarget[i].Position, projectileTransform.GetLocation());
-				auto xScale = distance / cWeaponData->BeamMeshLength;
-				scale = FVector(xScale, cWeaponData->ProjectileScale, cWeaponData->ProjectileScale);
+				auto xScale = distance / weaponData->BeamMeshLength;
+				scale = FVector(xScale, weaponData->ProjectileScale, weaponData->ProjectileScale);
 			}
 			else
 			{
-				scale = FVector(cWeaponData->ProjectileScale);
+				scale = FVector(weaponData->ProjectileScale);
 			}
 			projectileTransform.SetScale3D(scale);
 			projectileTransform.SetRotation(rotation.Quaternion());
 
 			ecs.entity().set<ISM_AddInstance>(
-				{cWeaponData->ProjectileHash, cWeaponData->ProjectilePrefab, projectileTransform});
+				{weaponData->ProjectileHash, weaponData->ProjectilePrefab, projectileTransform});
 
 			cCooldown[i].CurrentValue = cCooldown[i].MaxValue * FMath::RandRange(0.5f, 1.5f);
 			cTarget[i].Entity = flecs::entity::null();
@@ -337,12 +334,12 @@ void SystemSpawnProjectiles(flecs::iter& It)
 
 void SystemMoveProjectiles(flecs::iter& It)
 {
-	auto cTransform = It.column<Transform>(1);
-	auto cSpeed = It.column<Speed>(2);
+	auto cTransform = It.field<Transform>(1);
+	auto speed = It.field<const Speed>(2);
 
 	for (auto i : It)
 	{
-		auto velocity = cTransform[i].Value.GetRotation().GetForwardVector() * cSpeed->Value * It.delta_time();
+		auto velocity = cTransform[i].Value.GetRotation().GetForwardVector() * speed->Value * It.delta_time();
 		cTransform[i].Value.SetLocation(cTransform[i].Value.GetLocation() + velocity);
 	}
 }
@@ -350,7 +347,7 @@ void SystemMoveProjectiles(flecs::iter& It)
 
 void SystemComputeCooldownTime(flecs::iter& It)
 {
-	auto cCooldown = It.column<SpaceshipWeaponCooldownTime>(1);
+	auto cCooldown = It.field<SpaceshipWeaponCooldownTime>(1);
 	for (auto i : It)
 	{
 		if (!cCooldown[i].Initialized)
@@ -373,7 +370,7 @@ void SystemComputeCooldownTime(flecs::iter& It)
 
 void SystemCheckProjectileLifetime(flecs::iter& It)
 {
-	auto cLifetime = It.column<ProjectileLifetime>(1);
+	auto cLifetime = It.field<ProjectileLifetime>(1);
 	for (auto i : It)
 	{
 		if (cLifetime[i].CurrentTime > 0)
@@ -388,54 +385,80 @@ void SystemCheckProjectileLifetime(flecs::iter& It)
 	}
 }
 
+
 void UMainGameplay_Systems::Initialize(flecs::world& ecs)
 {
-	flecs::system<>(ecs, "SystemSpawnInstancesInRadius")
-		.signature("BatchInstanceAdding, Game:ISM_Map, Game:GameSettings")
-		.iter(SystemSpawnInstancesInRadius);
-	
-	flecs::system<>(ecs, "SystemAddInstance")
-		.signature("ISM_AddInstance, Game:ISM_Map")
-		.iter(SystemAddInstance);
-	
-	flecs::system<>(ecs, "SystemRemoveInstance")
-		.signature("ISM_Hash, ISM_Index, Game:ISM_Map, ISM_RemovedInstance")
-		.iter(SystemRemoveInstance);
-	
-	flecs::system<>(ecs, "SystemCopyInstanceTransforms")
-		.signature("Transform, ISM_Index, ISM_ControllerRef")
-		.iter(SystemCopyInstanceTransforms);
-	
-	flecs::system<>(ecs, "SystemUpdateTransformsInBatch")
-		.signature("Game:ISM_Map")
-		.iter(SystemUpdateTransformsInBatch);
-	
-	flecs::system<>(ecs, "SystemUpdateBoids")
-		.signature("Transform, Game:BoidSettings, SHARED:Speed, BoidInstance")
-		.iter(SystemUpdateBoids);
-	
-	flecs::system<>(ecs, "SystemSpawnProjectiles")
-		.signature("SpaceshipTarget, SpaceshipWeaponCooldownTime, SHARED:SpaceshipWeaponData, Transform")
-		.iter(SystemSpawnProjectiles);
-	
-	flecs::system<>(ecs, "SystemComputeCooldownTime")
-		.signature("SpaceshipWeaponCooldownTime")
-		.iter(SystemComputeCooldownTime);
-	
-	auto targetsQuery = flecs::query<>(ecs, "Transform, SpaceshipWeaponCooldownTime, SHARED:BattleTeam");
-	flecs::system<>(ecs, "SystemUpdateTargetHashMap", "Game:TargetHashMap, Game:GameSettings, SYSTEM:SystemQuery")
-		.iter(SystemUpdateTargetHashMap)
-		.set<SystemQuery>({targetsQuery});
-	
-	flecs::system<>(ecs, "SystemSearchNewTargets")
-		.signature("Game:TargetHashMap")
-		.iter(SystemSearchNewTargets);
-	
-	flecs::system<>(ecs, "SystemMoveProjectiles")
-		.signature("Transform, SHARED:Speed, ProjectileInstance")
-		.iter(SystemMoveProjectiles);
-	
-	flecs::system<>(ecs, "SystemCheckProjectileLifetime")
-		.signature("ProjectileLifetime")
-		.iter(SystemCheckProjectileLifetime);
+	ecs.system<BatchInstanceAdding, ISM_Map, GameSettings>("SystemSpawnInstancesInRadius")
+	   .arg(2).src("Game")
+	   .arg(3).src("Game")
+	   .kind(flecs::OnUpdate)
+	   .instanced()
+	   .iter(SystemSpawnInstancesInRadius);
+
+	ecs.system<ISM_AddInstance, ISM_Map>("SystemAddInstance")
+	   .arg(2).src("Game")
+	   .kind(flecs::OnUpdate)
+	   .instanced()
+	   .iter(SystemAddInstance);
+
+	ecs.system<ISM_Hash, ISM_Index, ISM_Map, ISM_RemovedInstance>("SystemRemoveInstance")
+	   .arg(3).src("Game")
+	   .kind(flecs::OnUpdate)
+	   .instanced()
+	   .iter(SystemRemoveInstance);
+
+	ecs.system<Transform, ISM_Index, ISM_ControllerRef>("SystemCopyInstanceTransforms")
+	   .kind(flecs::OnUpdate)
+	   .instanced()
+	   .iter(SystemCopyInstanceTransforms);
+
+	ecs.system<ISM_Map>("SystemUpdateTransformsInBatch")
+	   .arg(1).src("Game")
+	   .kind(flecs::OnUpdate)
+	   .iter(SystemUpdateTransformsInBatch);
+
+	ecs.system<Transform, BoidSettings, Speed, BoidInstance>("SystemUpdateBoids")
+	   .arg(2).src("Game")
+	   .arg(3).in()
+	   .kind(flecs::OnUpdate)
+	   .instanced()
+	   .iter(SystemUpdateBoids);
+
+	ecs.system<SpaceshipTarget, SpaceshipWeaponCooldownTime, SpaceshipWeaponData, Transform>("SystemSpawnProjectiles")
+	   .arg(3).in()
+	   .kind(flecs::OnUpdate)
+	   .instanced()
+	   .iter(SystemSpawnProjectiles);
+
+	ecs.system<SpaceshipWeaponCooldownTime>("SystemComputeCooldownTime")
+	   .kind(flecs::OnUpdate)
+	   .instanced()
+	   .iter(SystemComputeCooldownTime);
+
+	flecs::query<> targetsQuery = ecs.query_builder<Transform, SpaceshipWeaponCooldownTime, BattleTeam>()
+	                                 .build();
+
+	ecs.system<TargetHashMap, GameSettings, SystemQuery>("SystemUpdateTargetHashMap")
+	   .arg(1).src("Game").inout()
+	   .arg(2).src("Game")
+	   .kind(flecs::OnUpdate)
+	   .instanced()
+	   .iter(SystemUpdateTargetHashMap)
+	   .set<SystemQuery>({targetsQuery});
+
+	ecs.system<TargetHashMap>("SystemSearchNewTargets")
+	   .arg(1).src("Game").inout()
+	   .kind(flecs::OnUpdate)
+	   .instanced()
+	   .iter(SystemSearchNewTargets);
+
+	ecs.system<Transform, Speed, ProjectileInstance>("SystemMoveProjectiles")
+	   .kind(flecs::OnUpdate)
+	   .instanced()
+	   .iter(SystemMoveProjectiles);
+
+	ecs.system<ProjectileLifetime>("SystemCheckProjectileLifetime")
+	   .kind(flecs::OnUpdate)
+	   .instanced()
+	   .iter(SystemCheckProjectileLifetime);
 }

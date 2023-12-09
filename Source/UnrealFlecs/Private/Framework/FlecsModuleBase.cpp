@@ -5,4 +5,5 @@
 
 void UFlecsModuleBase::Initialize(flecs::world& ecs)
 {
+	assert(false && "Implement this function in child class");
 }

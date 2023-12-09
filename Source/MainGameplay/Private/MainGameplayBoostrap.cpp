@@ -19,8 +19,7 @@ void AMainGameplayBootstrap::Bootstrap(flecs::world& ecs)
 	{
 		auto module = NewObject<UFlecsModuleBase>(this, moduleType);
 		
-		auto bImplementWorldSet = module->Implements<UWorldSet>();
-		if(bImplementWorldSet)
+		if(module->Implements<UWorldSet>())
 		{
 			auto configSet = Cast<IWorldSet>(module);
 			configSet->SetWorld(GetWorld());

@@ -27,6 +27,7 @@ void AFlecsBootstrap::BeginPlay()
 
 void AFlecsBootstrap::Bootstrap(flecs::world& ecs)
 {
+	assert(false && "Implement this function in child class");
 	// Here we initialize flecs systems and components
 }
 
