@@ -1,22 +1,17 @@
 ﻿// Copyright 2021 Red J
 #include "Framework/UnrealFlecsSubsystem.h"
 
-#include "Framework/FlecsRegistration.h"
-
-
 void UUnrealFlecsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
-	OnTickDelegate = FTickerDelegate::CreateUObject(this, &UUnrealFlecsSubsystem::Tick);
-	OnTickHandle = FTicker::GetCoreTicker().AddTicker(OnTickDelegate);
+	OnTickHandle = FWorldDelegates::OnWorldPostActorTick.AddUObject(this, &UUnrealFlecsSubsystem::Tick);
 
 	ECSWorld = new flecs::world();
 
-	auto& regs = FlecsRegContainer::GetFlecsRegs();
-    for (auto reg : regs)
-    {
-    	reg(*ECSWorld);
-    }
-	UE_LOG(LogTemp, Warning, TEXT("Total Component Registrations %s"), *FString::FromInt(regs.Num()));
+	//flecs explorer and monitor
+	//comment this out if you not using it, it has some performance overhead
+	//go to https://www.flecs.dev/explorer/ when the project is running to inspect active entities and values
+	GetEcsWorld()->import<flecs::monitor>();
+	GetEcsWorld()->set<flecs::Rest>({});
 	
 	UE_LOG(LogTemp, Warning, TEXT("UUnrealFlecsSubsystem has started!"));
 	
@@ -25,7 +20,7 @@ void UUnrealFlecsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UUnrealFlecsSubsystem::Deinitialize()
 {
-	FTicker::GetCoreTicker().RemoveTicker(OnTickHandle);
+	FWorldDelegates::OnWorldPostActorTick.Remove(OnTickHandle);
 
 	if(ECSWorld)
 	{
@@ -42,9 +37,7 @@ flecs::world* UUnrealFlecsSubsystem::GetEcsWorld() const
 	return ECSWorld;
 }
 
-bool UUnrealFlecsSubsystem::Tick(float DeltaTime)
+void UUnrealFlecsSubsystem::Tick(UWorld* World, ELevelTick LevelTick, float DeltaTime)
 {
 	if(ECSWorld) ECSWorld->progress(DeltaTime);
-
-	return true;
 }

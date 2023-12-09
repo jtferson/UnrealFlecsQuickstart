@@ -41,9 +41,8 @@ void UMainGameplay_Inits::Initialize(flecs::world& ecs)
 		                                      team->SpaceshipType->Weapons->Material, ismMap);
 
 		auto projectilePrefab = ecs.prefab()
-		                           .set<ProjectileLifetime>({team->SpaceshipType->Weapons->Lifetime})
-		                           .add_owned<ProjectileLifetime>()
-		                           .add_owned<ProjectileInstance>();;
+		                           .set_override<ProjectileLifetime>({team->SpaceshipType->Weapons->Lifetime})
+		                           .add<ProjectileInstance>();
 
 		if (team->SpaceshipType->Weapons->WeaponType != EWeaponType::Beam)
 		{
@@ -58,15 +57,12 @@ void UMainGameplay_Inits::Initialize(flecs::world& ecs)
 			                          team->SpaceshipType->Weapons->ProjectileScale,
 			                          team->SpaceshipType->Weapons->BeamMeshLength
 		                          })
-		                          .set<SpaceshipWeaponCooldownTime>({team->SpaceshipType->Weapons->Cooldown, 0.f})
-		                          .set<SpaceshipTarget>({flecs::entity::null()})
+		                          .set_override<SpaceshipWeaponCooldownTime>({team->SpaceshipType->Weapons->Cooldown, 0.f})
+		                          .set_override<SpaceshipTarget>({flecs::entity::null()})
 		                          .set<Speed>({team->SpaceshipType->MaxSpeed})
-		                          .set<Transform>({FTransform(FVector::ZeroVector)})
+		                          .set_override<Transform>({FTransform(FVector::ZeroVector)})
 		                          .set<BattleTeam>({teamEntity})
-		                          .add_owned<SpaceshipWeaponCooldownTime>()
-		                          .add_owned<SpaceshipTarget>()
-		                          .add_owned<Transform>()
-		                          .add_owned<BoidInstance>();
+		                          .add<BoidInstance>();
 
 		ecs.entity().set<BatchInstanceAdding>(
 			{team->NumShips, spaceshipHash, spaceshipPrefab});

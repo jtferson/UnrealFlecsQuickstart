@@ -5,28 +5,25 @@
 
 #include "CoreMinimal.h"
 #include "Framework/FlecsModuleBase.h"
-#include "Framework/FlecsRegistration.h"
 #include "Scene/ISMController.h"
 
-#include "MainGameplay_Components.generated.h"
-
-FLECS_COMPONENT(UWorldRef)
+struct UWorldRef
 {
 	UWorld* Value;
 };
 
-FLECS_COMPONENT(Transform)
+struct Transform
 {
 	FTransform Value;
 };
 
-FLECS_COMPONENT(GameSettings)
+struct GameSettings
 {
 	FVector2D SpawnRange;
 	float ShootingCellSize;
 };
 
-FLECS_COMPONENT(BoidSettings)
+struct BoidSettings
 {
 	float SeparationWeight;
 	float CohesionWeight;
@@ -37,73 +34,67 @@ FLECS_COMPONENT(BoidSettings)
 	float CageAvoidDistance;
 };
 
-FLECS_COMPONENT(ISM_Map)
+struct ISM_Map
 {
 	TMap<uint32, AISMController*> ISMs;
 };
 
-FLECS_COMPONENT(ISM_ControllerRef)
+struct ISM_ControllerRef
 {
 	AISMController* Value;
 };
 
-FLECS_COMPONENT(ISM_Hash)
+struct ISM_Hash
 {
 	int32 Value;
 };
 
-FLECS_COMPONENT(ISM_Index)
+struct ISM_Index
 {
 	int Value;
 };
 
-FLECS_COMPONENT(ISM_RemovedInstance)
+struct ISM_RemovedInstance
 {
 };
 
 
-
-
-
-
-FLECS_COMPONENT(BatchInstanceAdding)
+struct BatchInstanceAdding
 {
 	int Num;
 	int32 Hash;
 	flecs::entity Prefab;
 };
 
-FLECS_COMPONENT(ISM_AddInstance)
+struct ISM_AddInstance
 {
 	int32 Hash;
 	flecs::entity Prefab;
 	FTransform Transform;
 };
 
-
-//
-FLECS_COMPONENT(SpaceshipWeaponCooldownTime)
+struct SpaceshipWeaponCooldownTime
 {
 	float MaxValue;
 	float CurrentValue;
 	bool Initialized;
 };
 
-FLECS_COMPONENT(SpaceshipTarget)
+struct SpaceshipTarget
 {
 	flecs::entity Entity;
 	FVector Position;
 };
 
-FLECS_COMPONENT(BoidInstance)
+struct BoidInstance
 {
 };
 
-FLECS_COMPONENT(ProjectileInstance)
+struct ProjectileInstance
 {
 };
 
-FLECS_COMPONENT(SpaceshipWeaponData)
+struct SpaceshipWeaponData
 {
 	flecs::entity ProjectilePrefab;
 	int32 ProjectileHash;
@@ -112,22 +103,22 @@ FLECS_COMPONENT(SpaceshipWeaponData)
 	float BeamMeshLength;
 };
 
-FLECS_COMPONENT(ProjectileLifetime)
+struct ProjectileLifetime
 {
 	float CurrentTime;
 };
 
-FLECS_COMPONENT(Speed)
+struct Speed
 {
 	float Value;
 };
 
-FLECS_COMPONENT(BattleTeam)
+struct BattleTeam
 {
 	flecs::entity Value;
 };
 
-FLECS_COMPONENT(SystemQuery)
+struct SystemQuery
 {
 	flecs::query<> Value;
 };
@@ -141,15 +132,7 @@ struct Data_TargetInstance
 	bool CanAttack;
 };
 
-FLECS_COMPONENT(TargetHashMap)
+struct TargetHashMap
 {
 	TMap<FIntVector, TArray<Data_TargetInstance>> Value;
-};
-
-UCLASS()
-class MAINGAMEPLAY_API UMainGameplay_Components : public UFlecsModuleBase
-{
-	GENERATED_BODY()
-
-	virtual void Initialize(flecs::world& ecs) override;
 };

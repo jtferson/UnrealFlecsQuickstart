@@ -2,6 +2,10 @@
 
 
 #include "FlecsLibrary/Public/FlecsLibraryModule.h"
+
+#include <iostream>
+#include <string>
+
 #include "Modules/ModuleManager.h"
 #include "Modules/ModuleInterface.h"
 

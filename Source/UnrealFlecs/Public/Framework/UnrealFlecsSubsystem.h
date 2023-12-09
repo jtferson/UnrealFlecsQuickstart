@@ -20,11 +20,10 @@ public:
 
 	flecs::world* GetEcsWorld() const;
 protected:
-	FTickerDelegate OnTickDelegate;
 	FDelegateHandle OnTickHandle;
 
 	flecs::world* ECSWorld = nullptr;
 	
 private:
-	bool Tick(float DeltaTime);
+    void Tick(UWorld* World, ELevelTick LevelTick, float DeltaTime);
 };
